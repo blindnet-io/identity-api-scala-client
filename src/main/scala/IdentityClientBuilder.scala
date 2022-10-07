@@ -6,7 +6,7 @@ import org.http4s.blaze.client.*
 import org.http4s.client.*
 import org.http4s.implicits.*
 
-case class IdentityClientBuilder private (
+case class IdentityClientBuilder (
   baseUri: Uri = uri"https://identity.devkit.blindnet.io",
 ) {
   def withBaseUri(baseUri: Uri): IdentityClientBuilder = copy(baseUri = baseUri)

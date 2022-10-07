@@ -12,8 +12,12 @@ import scala.util.Try
 
 case class JwtAuthenticator[T] (
   identityClient: IdentityClient,
-  jwtMapper: Jwt => IO[Either[String, T]] = jwt => IO.pure(Right(jwt)),
+  private val baseEndpoint: PublicEndpoint[Unit, Unit, Unit, Any] = endpoint,
+  private val jwtMapper: Jwt => IO[Either[String, T]] = jwt => IO.pure(Right(jwt)),
 ) {
+  def withBaseEndpoint(endpoint: PublicEndpoint[Unit, Unit, Unit, Any]): JwtAuthenticator[T] =
+    copy(baseEndpoint = endpoint)
+
   def requireAppJwt: JwtAuthenticator[AppJwt] = require(_.asApp)
   def requireAnyUserJwt: JwtAuthenticator[AnyUserJwt] = require(_.asAnyUser)
   def requireUserJwt: JwtAuthenticator[UserJwt] = require(_.asUser)
@@ -31,7 +35,7 @@ case class JwtAuthenticator[T] (
     copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
 
   def secureEndpoint: PartialServerEndpoint[Option[String], T, Unit, String, Unit, Any, IO] =
-    endpoint
+    baseEndpoint
       .securityIn(header[Option[String]]("Authorization"))
       .errorOut(plainBody[String])
       .serverSecurityLogic(authenticateHeader)

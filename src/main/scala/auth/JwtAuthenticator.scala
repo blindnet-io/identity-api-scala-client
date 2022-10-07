@@ -10,7 +10,7 @@ import sttp.tapir.server.*
 import java.util.UUID
 import scala.util.Try
 
-case class JwtAuthenticator[T] private (
+case class JwtAuthenticator[T] (
   identityClient: IdentityClient,
   jwtMapper: Jwt => IO[Either[String, T]] = jwt => IO.pure(Right(jwt)),
 ) {

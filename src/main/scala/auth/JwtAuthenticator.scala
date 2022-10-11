@@ -2,9 +2,11 @@ package io.blindnet.identityclient
 package auth
 
 import cats.data.EitherT
-import cats.effect.*
+import cats.effect.{IO, *}
 import io.blindnet.jwt.{Token, TokenPublicKey}
+import sttp.model.StatusCode
 import sttp.tapir.*
+import sttp.tapir.json.circe.*
 import sttp.tapir.server.*
 
 import java.util.UUID
@@ -22,8 +24,8 @@ case class JwtAuthenticator[T] (
   def requireAnyUserJwt: JwtAuthenticator[AnyUserJwt] = require(_.asAnyUser)
   def requireUserJwt: JwtAuthenticator[UserJwt] = require(_.asUser)
   def requireAnonymousJwt: JwtAuthenticator[AnonymousJwt] = require(_.asAnonymous)
-  private def require[R](f: Jwt => Either[String, R]): JwtAuthenticator[R] =
-    copy(jwtMapper = jwt => IO.pure(f(jwt)))
+  private def require[R](f: Jwt => Option[R]): JwtAuthenticator[R] =
+    copy(jwtMapper = jwt => IO.pure(f(jwt).toRight("Wrong JWT type")))
 
   def mapJwt[R](f: T => R): JwtAuthenticator[R] =
     copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).map(f).value))
@@ -34,11 +36,12 @@ case class JwtAuthenticator[T] (
   def flatMapJwtF[R](f: T => IO[Either[String, R]]): JwtAuthenticator[R] =
     copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
 
-  def secureEndpoint: PartialServerEndpoint[Option[String], T, Unit, String, Unit, Any, IO] =
+  def secureEndpoint: PartialServerEndpoint[Option[String], T, Unit, (StatusCode, String), Unit, Any, IO] =
     baseEndpoint
       .securityIn(header[Option[String]]("Authorization"))
-      .errorOut(plainBody[String])
-      .serverSecurityLogic(authenticateHeader)
+      .errorOut(statusCode)
+      .errorOut(jsonBody[String])
+      .serverSecurityLogic(authenticateHeader(_).map(_.left.map((StatusCode.Unauthorized, _))))
 
   def authenticateHeader(headerOption: Option[String]): IO[Either[String, T]] =
     headerOption match

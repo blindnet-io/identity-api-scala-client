@@ -10,15 +10,15 @@ import java.util.UUID
 sealed trait Jwt {
   val appId: UUID
 
-  def asApp: Either[String, AppJwt] = as(classOf[AppJwt])
-  def asAnyUser: Either[String, AnyUserJwt] = as(classOf[AnyUserJwt])
-  def asUser: Either[String, UserJwt] = as(classOf[UserJwt])
-  def asAnonymous: Either[String, AnonymousJwt] = as(classOf[AnonymousJwt])
+  def asApp: Option[AppJwt] = as(classOf[AppJwt])
+  def asAnyUser: Option[AnyUserJwt] = as(classOf[AnyUserJwt])
+  def asUser: Option[UserJwt] = as(classOf[UserJwt])
+  def asAnonymous: Option[AnonymousJwt] = as(classOf[AnonymousJwt])
 
-  private def as[T](cl: Class[T]): Either[String, T] =
+  private def as[T](cl: Class[T]): Option[T] =
     if cl.isInstance(this)
-    then Right(asInstanceOf[T])
-    else Left("Wrong JWT type")
+    then Some(asInstanceOf[T])
+    else None
 }
 
 object Jwt {

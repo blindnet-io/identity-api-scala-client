@@ -13,7 +13,7 @@ class IdentityClient(
   def getAppInfo(id: UUID): IO[Option[ApplicationInfo]] =
     val req = Request[IO](
       method = Method.GET,
-      uri = baseUri.addPath(s"applications/$id")
+      uri = baseUri.addPath(s"v1/applications/$id")
     )
 
     client.expectOption[ApplicationInfo](req)

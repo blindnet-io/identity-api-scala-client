@@ -9,6 +9,9 @@ pr:
 resources:
   - repo: self
 
+variables:
+  - group: maven-repo
+
 pool:
   vmImage: 'ubuntu-latest'
 

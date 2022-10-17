@@ -28,5 +28,6 @@ lazy val root = (project in file("."))
       "io.circe"                    %% "circe-generic"              % circeVersion,
     ),
     publishTo := Some("Blindnet Snapshots" at "https://nexus.blindnet.io/repository/maven-snapshots"),
-    credentials += Credentials("Sonatype Nexus Repository Manager", "nexus.blindnet.io", sys.env("MAVEN_USER"), sys.env("MAVEN_PASSWORD"))
+    credentials += Credentials("Sonatype Nexus Repository Manager", "nexus.blindnet.io",
+      sys.env.getOrElse("MAVEN_USER", ""), sys.env.getOrElse("MAVEN_PASSWORD", ""))
   )

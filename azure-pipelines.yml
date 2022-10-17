@@ -20,4 +20,7 @@ steps:
       sudo apt-get install -y sbt
     displayName: Install SBT
   - script: sbt publish
+    env:
+      MAVEN_USER: $(mavenUser)
+      MAVEN_PASSWORD: $(mavenPassword)
     displayName: Publish

@@ -53,9 +53,10 @@ case class StAuthenticator[T <: St, R] (
     } yield mapped).value
 
   private def extractTokenFromHeader(header: String): Either[String, String] =
-    if header.startsWith("Bearer ")
-    then Right(header.substring(7))
-    else Left("Invalid Authorization header")
+    header match {
+      case s"Bearer $jwt" => Right(jwt)
+      case _              => Left("Invalid Authorization header")
+    }
 }
 
 object StAuthenticator {

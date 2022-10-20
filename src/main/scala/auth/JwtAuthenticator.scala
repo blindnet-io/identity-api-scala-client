@@ -15,7 +15,7 @@ import scala.util.Try
 case class JwtAuthenticator[T] (
   identityClient: IdentityClient,
   private val baseEndpoint: PublicEndpoint[Unit, Unit, Unit, Any] = endpoint,
-  private val jwtMapper: Jwt => IO[Either[String, T]] = jwt => IO.pure(Right(jwt)),
+  private val jwtProcessor: Jwt => IO[Either[String, T]] = jwt => IO.pure(Right(jwt)),
 ) {
   def withBaseEndpoint(endpoint: PublicEndpoint[Unit, Unit, Unit, Any]): JwtAuthenticator[T] =
     copy(baseEndpoint = endpoint)
@@ -25,16 +25,16 @@ case class JwtAuthenticator[T] (
   def requireUserJwt: JwtAuthenticator[UserJwt] = require(_.asUser)
   def requireAnonymousJwt: JwtAuthenticator[AnonymousJwt] = require(_.asAnonymous)
   private def require[R](f: Jwt => Option[R]): JwtAuthenticator[R] =
-    copy(jwtMapper = jwt => IO.pure(f(jwt).toRight("Wrong JWT type")))
+    copy(jwtProcessor = jwt => IO.pure(f(jwt).toRight("Wrong JWT type")))
 
   def mapJwt[R](f: T => R): JwtAuthenticator[R] =
-    copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).map(f).value))
+    copy(jwtProcessor = jwtProcessor.andThen(e => EitherT(e).map(f).value))
   def mapJwtF[R](f: T => IO[R]): JwtAuthenticator[R] =
-    copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).semiflatMap(f).value))
+    copy(jwtProcessor = jwtProcessor.andThen(e => EitherT(e).semiflatMap(f).value))
   def flatMapJwt[R](f: T => Either[String, R]): JwtAuthenticator[R] =
-    copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).subflatMap(f).value))
+    copy(jwtProcessor = jwtProcessor.andThen(e => EitherT(e).subflatMap(f).value))
   def flatMapJwtF[R](f: T => IO[Either[String, R]]): JwtAuthenticator[R] =
-    copy(jwtMapper = jwtMapper.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
+    copy(jwtProcessor = jwtProcessor.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
 
   def secureEndpoint: PartialServerEndpoint[Option[String], T, Unit, (StatusCode, String), Unit, Any, IO] =
     baseEndpoint
@@ -59,7 +59,7 @@ case class JwtAuthenticator[T] (
       appInfo <- EitherT.fromOptionF(identityClient.getAppInfo(token.getAppId), "Application not found")
       _ <- EitherT.fromEither[IO](verifyToken(token, appInfo))
       jwt <- EitherT.pure[IO, String](Jwt.fromJavaToken(token))
-      mapped <- EitherT(jwtMapper(jwt))
+      mapped <- EitherT(jwtProcessor(jwt))
     } yield mapped).value
 
   private def extractTokenFromHeader(header: String): Either[String, String] =

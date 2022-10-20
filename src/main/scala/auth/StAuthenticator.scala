@@ -15,19 +15,19 @@ import scala.util.Try
 case class StAuthenticator[T <: St, R] (
   repo: StRepository[T, IO],
   private val baseEndpoint: PublicEndpoint[Unit, Unit, Unit, Any] = endpoint,
-  private val stMapper: T => IO[Either[String, R]] = (st: T) => IO.pure(Right(st)),
+  private val stProcessor: T => IO[Either[String, R]] = (st: T) => IO.pure(Right(st)),
 ) {
   def withBaseEndpoint(endpoint: PublicEndpoint[Unit, Unit, Unit, Any]): StAuthenticator[T, R] =
     copy(baseEndpoint = endpoint)
 
   def mapSt[S](f: R => S): StAuthenticator[T, S] =
-    copy(stMapper = stMapper.andThen(e => EitherT(e).map(f).value))
+    copy(stProcessor = stProcessor.andThen(e => EitherT(e).map(f).value))
   def mapStF[S](f: R => IO[S]): StAuthenticator[T, S] =
-    copy(stMapper = stMapper.andThen(e => EitherT(e).semiflatMap(f).value))
+    copy(stProcessor = stProcessor.andThen(e => EitherT(e).semiflatMap(f).value))
   def flatMapSt[S](f: R => Either[String, S]): StAuthenticator[T, S] =
-    copy(stMapper = stMapper.andThen(e => EitherT(e).subflatMap(f).value))
+    copy(stProcessor = stProcessor.andThen(e => EitherT(e).subflatMap(f).value))
   def flatMapStF[S](f: R => IO[Either[String, S]]): StAuthenticator[T, S] =
-    copy(stMapper = stMapper.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
+    copy(stProcessor = stProcessor.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
 
   def secureEndpoint: PartialServerEndpoint[Option[String], R, Unit, (StatusCode, String), Unit, Any, IO] =
     baseEndpoint
@@ -49,7 +49,7 @@ case class StAuthenticator[T <: St, R] (
   def authenticateToken(raw: String): IO[Either[String, R]] =
     (for {
       token <- EitherT.fromOptionF(repo.findByToken(raw), "Invalid token")
-      mapped <- EitherT(stMapper(token))
+      mapped <- EitherT(stProcessor(token))
     } yield mapped).value
 
   private def extractTokenFromHeader(header: String): Either[String, String] =

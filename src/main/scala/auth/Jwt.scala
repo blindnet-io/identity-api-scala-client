@@ -6,19 +6,20 @@ import io.blindnet.jwt.Token
 import io.circe.*
 
 import java.util.UUID
+import scala.reflect.TypeTest
 
 sealed trait Jwt {
   val appId: UUID
 
-  def asApp: Option[AppJwt] = as(classOf[AppJwt])
-  def asAnyUser: Option[AnyUserJwt] = as(classOf[AnyUserJwt])
-  def asUser: Option[UserJwt] = as(classOf[UserJwt])
-  def asAnonymous: Option[AnonymousJwt] = as(classOf[AnonymousJwt])
+  def asApp: Option[AppJwt] = as[AppJwt]
+  def asAnyUser: Option[AnyUserJwt] = as[AnyUserJwt]
+  def asUser: Option[UserJwt] = as[UserJwt]
+  def asAnonymous: Option[AnonymousJwt] = as[AnonymousJwt]
 
-  private def as[T](cl: Class[T]): Option[T] =
-    if cl.isInstance(this)
-    then Some(asInstanceOf[T])
-    else None
+  private def as[T <: Jwt](using TypeTest[Jwt, T]): Option[T] =
+    this match
+      case t: T => Some(t)
+      case _    => None
 }
 
 object Jwt {

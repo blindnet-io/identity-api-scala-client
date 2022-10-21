@@ -36,12 +36,13 @@ case class JwtAuthenticator[T] (
   def flatMapJwtF[R](f: T => IO[Either[String, R]]): JwtAuthenticator[R] =
     copy(jwtProcessor = jwtProcessor.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
 
-  def secureEndpoint: PartialServerEndpoint[Option[String], T, Unit, (StatusCode, String), Unit, Any, IO] =
+  def secureEndpoint: PartialServerEndpoint[Option[String], T, Unit, Exception, Unit, Any, IO] =
     baseEndpoint
       .securityIn(header[Option[String]]("Authorization"))
-      .errorOut(statusCode)
-      .errorOut(jsonBody[String])
-      .serverSecurityLogic(authenticateHeader(_).map(_.left.map((StatusCode.Unauthorized, _))))
+      .errorOut(oneOf[Exception](
+        oneOfVariant(StatusCode.Unauthorized, jsonBody[String].mapTo[AuthException])
+      ))
+      .serverSecurityLogic(authenticateHeader(_).map(_.left.map(AuthException(_))))
 
   def authenticateHeader(headerOption: Option[String]): IO[Either[String, T]] =
     headerOption match

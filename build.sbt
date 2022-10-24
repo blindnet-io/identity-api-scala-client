@@ -5,7 +5,7 @@ Test / fork := true
 
 val circeVersion = "0.14.3"
 val http4sVersion = "0.23.12"
-val tapirVersion = "1.0.0"
+val tapirVersion = "1.0.4"
 
 lazy val root = (project in file("."))
   .settings(

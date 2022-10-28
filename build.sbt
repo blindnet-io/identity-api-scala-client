@@ -23,7 +23,7 @@ lazy val root = (project in file("."))
       "org.typelevel"               %% "cats-effect"                % "3.3.14",
       "org.http4s"                  %% "http4s-blaze-client"        % http4sVersion,
       "org.http4s"                  %% "http4s-circe"               % http4sVersion,
-      "io.blindnet"                 %  "jwt-java"                   % "1.0.1-SNAPSHOT",
+      "io.blindnet"                 %  "jwt-java"                   % "1.0.2-SNAPSHOT",
       "io.circe"                    %% "circe-core"                 % circeVersion,
       "io.circe"                    %% "circe-generic"              % circeVersion,
     ),

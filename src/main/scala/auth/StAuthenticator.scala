@@ -14,11 +14,8 @@ import scala.util.Try
 
 case class StAuthenticator[T <: St, R] (
   repo: StRepository[T, IO],
-  private val baseEndpoint: PublicEndpoint[Unit, Unit, Unit, Any] = endpoint,
   private val stProcessor: T => IO[Either[String, R]] = (st: T) => IO.pure(Right(st)),
-) {
-  def withBaseEndpoint(endpoint: PublicEndpoint[Unit, Unit, Unit, Any]): StAuthenticator[T, R] =
-    copy(baseEndpoint = endpoint)
+) extends Authenticator[R] {
 
   def mapSt[S](f: R => S): StAuthenticator[T, S] =
     copy(stProcessor = stProcessor.andThen(e => EitherT(e).map(f).value))
@@ -29,34 +26,11 @@ case class StAuthenticator[T <: St, R] (
   def flatMapStF[S](f: R => IO[Either[String, S]]): StAuthenticator[T, S] =
     copy(stProcessor = stProcessor.andThen(e => EitherT(e).flatMap(t => EitherT(f(t))).value))
 
-  def secureEndpoint: PartialServerEndpoint[Option[String], R, Unit, (StatusCode, String), Unit, Any, IO] =
-    baseEndpoint
-      .securityIn(header[Option[String]]("Authorization"))
-      .errorOut(statusCode)
-      .errorOut(jsonBody[String])
-      .serverSecurityLogic(authenticateHeader(_).map(_.left.map((StatusCode.Unauthorized, _))))
-
-  def authenticateHeader(headerOption: Option[String]): IO[Either[String, R]] =
-    headerOption match
-      case Some(header) => authenticateHeader(header)
-      case None => IO.pure(Left("Missing Authorization header"))
-
-  def authenticateHeader(header: String): IO[Either[String, R]] =
-    EitherT.fromEither[IO](extractTokenFromHeader(header))
-      .flatMap(token => EitherT(authenticateToken(token)))
-      .value
-
   def authenticateToken(raw: String): IO[Either[String, R]] =
     (for {
       token <- EitherT.fromOptionF(repo.findByToken(raw), "Invalid token")
       mapped <- EitherT(stProcessor(token))
     } yield mapped).value
-
-  private def extractTokenFromHeader(header: String): Either[String, String] =
-    header match {
-      case s"Bearer $jwt" => Right(jwt)
-      case _              => Left("Invalid Authorization header")
-    }
 }
 
 object StAuthenticator {
